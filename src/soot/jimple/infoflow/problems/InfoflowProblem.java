@@ -87,8 +87,8 @@ public class InfoflowProblem extends AbstractInfoflowProblem {
     private final MyConcurrentHashMap<Unit, Set<Abstraction>> implicitTargets =
     		new MyConcurrentHashMap<Unit, Set<Abstraction>>();
     
-	protected final MyConcurrentHashMap<AbstractionAtSink, Abstraction> results =
-			new MyConcurrentHashMap<AbstractionAtSink, Abstraction>();
+	protected final MyConcurrentHashMap<AbstractionAtSink<Abstraction>, Abstraction> results =
+			new MyConcurrentHashMap<AbstractionAtSink<Abstraction>, Abstraction>();
 	
 	public InfoflowProblem(ISourceSinkManager sourceSinkManager,
 			IAliasingStrategy aliasingStrategy) {
@@ -692,7 +692,7 @@ public class InfoflowProblem extends AbstractInfoflowProblem {
 							
 							// If this is a sink, we need to report the finding
 							if (isSink && newSource.isAbstractionActive() && newSource.getAccessPath().isEmpty())
-								addResult(new AbstractionAtSink(newSource, leftValue, assignStmt));
+								addResult(new AbstractionAtSink<Abstraction>(newSource, leftValue, assignStmt));
 							
 							Abstraction targetAB = mappedAP.equals(newSource.getAccessPath()) ? newSource
 									: newSource.deriveNewAbstraction(mappedAP, null);
@@ -725,7 +725,7 @@ public class InfoflowProblem extends AbstractInfoflowProblem {
 									&& source.isAbstractionActive()
 									&& sourceSinkManager.isSink(returnStmt, interproceduralCFG())
 									&& source.getAccessPath().isEmpty())
-								addResult(new AbstractionAtSink(source, returnStmt.getOp(), returnStmt));
+								addResult(new AbstractionAtSink<Abstraction>(source, returnStmt.getOp(), returnStmt));
 
 							return Collections.singleton(source);
 						}
@@ -1074,7 +1074,7 @@ public class InfoflowProblem extends AbstractInfoflowProblem {
 									&& aliasing.mayAlias(newSource.getAccessPath().getPlainValue(), returnStmt.getOp());
 							if (mustTaintSink && isSink
 									&& newSource.isAbstractionActive())
-								addResult(new AbstractionAtSink(newSource, returnStmt.getOp(), returnStmt));
+								addResult(new AbstractionAtSink<Abstraction>(newSource, returnStmt.getOp(), returnStmt));
 						}
 						
 						// If we have no caller, we have nowhere to propagate. This
@@ -1385,13 +1385,13 @@ public class InfoflowProblem extends AbstractInfoflowProblem {
 								}
 								
 								if (taintedParam && newSource.isAbstractionActive())
-									addResult(new AbstractionAtSink(newSource, invExpr, iStmt));
+									addResult(new AbstractionAtSink<Abstraction>(newSource, invExpr, iStmt));
 								// if the base object which executes the method is tainted the sink is reached, too.
 								if (invExpr instanceof InstanceInvokeExpr) {
 									InstanceInvokeExpr vie = (InstanceInvokeExpr) iStmt.getInvokeExpr();
 									if (newSource.isAbstractionActive()
 											&& aliasing.mayAlias(vie.getBase(), newSource.getAccessPath().getPlainValue()))
-										addResult(new AbstractionAtSink(newSource, invExpr, iStmt));
+										addResult(new AbstractionAtSink<Abstraction>(newSource, invExpr, iStmt));
 								}
 							}
 							
@@ -1418,7 +1418,7 @@ public class InfoflowProblem extends AbstractInfoflowProblem {
 	 * Adds a new result of the data flow analysis to the collection
 	 * @param resultAbs The abstraction at the sink instruction
 	 */
-	private void addResult(AbstractionAtSink resultAbs) {
+	private void addResult(AbstractionAtSink<Abstraction> resultAbs) {
 		// Check whether we need to filter a result in a system package
 		if (ignoreFlowsInSystemPackages && SystemClassHandler.isClassInSystemPackage
 				(interproceduralCFG().getMethodOf(resultAbs.getSinkStmt()).getDeclaringClass().getName()))
@@ -1426,7 +1426,7 @@ public class InfoflowProblem extends AbstractInfoflowProblem {
 		
 		// Make sure that the sink statement also appears inside the
 		// abstraction
-		resultAbs = new AbstractionAtSink
+		resultAbs = new AbstractionAtSink<Abstraction>
 				(resultAbs.getAbstraction().deriveNewAbstraction
 						(resultAbs.getAbstraction().getAccessPath(), resultAbs.getSinkStmt()),
 				resultAbs.getSinkValue(), resultAbs.getSinkStmt());
@@ -1441,7 +1441,7 @@ public class InfoflowProblem extends AbstractInfoflowProblem {
 	/**
 	 * Gets the results of the data flow analysis
 	 */
-    public Set<AbstractionAtSink> getResults(){
+    public Set<AbstractionAtSink<Abstraction>> getResults(){
    		return this.results.keySet();
 	}
     

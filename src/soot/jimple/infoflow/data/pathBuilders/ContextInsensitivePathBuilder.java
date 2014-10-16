@@ -10,11 +10,13 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import soot.SootMethod;
+import soot.Unit;
 import soot.jimple.infoflow.InfoflowResults;
-import soot.jimple.infoflow.data.Abstraction;
 import soot.jimple.infoflow.data.AbstractionAtSink;
+import soot.jimple.infoflow.data.ILinkedAbstraction;
 import soot.jimple.infoflow.data.SourceContextAndPath;
-import soot.jimple.infoflow.solver.IInfoflowCFG;
+import soot.jimple.toolkits.ide.icfg.BiDiInterproceduralCFG;
 
 /**
  * Class for reconstructing abstraction paths from sinks to source. This builder
@@ -23,7 +25,7 @@ import soot.jimple.infoflow.solver.IInfoflowCFG;
  * 
  * @author Steven Arzt
  */
-public class ContextInsensitivePathBuilder extends AbstractAbstractionPathBuilder {
+public class ContextInsensitivePathBuilder<D extends ILinkedAbstraction<D>> extends AbstractAbstractionPathBuilder<D> {
 	
 	private AtomicInteger propagationCount = null;
     private final Logger logger = LoggerFactory.getLogger(getClass());
@@ -37,7 +39,7 @@ public class ContextInsensitivePathBuilder extends AbstractAbstractionPathBuilde
 	 * Creates a new instance of the {@link ContextSensitivePathBuilder} class
 	 * @param maxThreadNum The maximum number of threads to use
 	 */
-	public ContextInsensitivePathBuilder(IInfoflowCFG icfg, int maxThreadNum) {
+	public ContextInsensitivePathBuilder(BiDiInterproceduralCFG<Unit,SootMethod> icfg, int maxThreadNum) {
 		super(icfg);
         int numThreads = Runtime.getRuntime().availableProcessors();
 		this.executor = createExecutor(maxThreadNum == -1 ? numThreads
@@ -61,9 +63,9 @@ public class ContextInsensitivePathBuilder extends AbstractAbstractionPathBuilde
 	 * @author Steven Arzt
 	 */
 	private class SourceFindingTask implements Runnable {
-		private final Abstraction abstraction;
+		private final ILinkedAbstraction<D> abstraction;
 		
-		public SourceFindingTask(Abstraction abstraction) {
+		public SourceFindingTask(ILinkedAbstraction<D> abstraction) {
 			this.abstraction = abstraction;
 		}
 		
@@ -72,7 +74,7 @@ public class ContextInsensitivePathBuilder extends AbstractAbstractionPathBuilde
 			propagationCount.incrementAndGet();
 			
 			final Set<SourceContextAndPath> paths = abstraction.getPaths();
-			final Abstraction pred = abstraction.getPredecessor();
+			final D pred = abstraction.getPredecessor();
 			
 			if (pred == null) {
 				// If we have no predecessors, this must be a source
@@ -100,7 +102,7 @@ public class ContextInsensitivePathBuilder extends AbstractAbstractionPathBuilde
 					
 					// Process the predecessor's neighbors
 					if (pred.getNeighbors() != null)
-						for (Abstraction neighbor : pred.getNeighbors())
+						for (D neighbor : pred.getNeighbors())
 							if (processPredecessor(scap, neighbor))
 								// Schedule the predecessor
 								executor.execute(new SourceFindingTask(neighbor));
@@ -108,7 +110,7 @@ public class ContextInsensitivePathBuilder extends AbstractAbstractionPathBuilde
 			}
 		}
 
-		private boolean processPredecessor(SourceContextAndPath scap, Abstraction pred) {
+		private boolean processPredecessor(SourceContextAndPath scap, D pred) {
 			// Put the current statement on the list
 			SourceContextAndPath extendedScap = scap.extendPath(reconstructPaths
 					? pred.getCurrentStmt() : null);
@@ -119,18 +121,18 @@ public class ContextInsensitivePathBuilder extends AbstractAbstractionPathBuilde
 	}
 	
 	@Override
-	public void computeTaintSources(final Set<AbstractionAtSink> res) {
+	public void computeTaintSources(final Set<AbstractionAtSink<D>> res) {
 		this.reconstructPaths = false;
 		runSourceFindingTasks(res);
 	}
 	
 	@Override
-	public void computeTaintPaths(final Set<AbstractionAtSink> res) {
+	public void computeTaintPaths(final Set<AbstractionAtSink<D>> res) {
 		this.reconstructPaths = true;
 		runSourceFindingTasks(res);
 	}
 	
-	private void runSourceFindingTasks(final Set<AbstractionAtSink> res) {
+	private void runSourceFindingTasks(final Set<AbstractionAtSink<D>> res) {
 		if (res.isEmpty())
 			return;
 		
@@ -140,14 +142,14 @@ public class ContextInsensitivePathBuilder extends AbstractAbstractionPathBuilde
     	
     	// Start the propagation tasks
     	int curResIdx = 0;
-    	for (final AbstractionAtSink abs : res) {
+    	for (final AbstractionAtSink<D> abs : res) {
     		logger.info("Building path " + ++curResIdx);
    			buildPathForAbstraction(abs);
    			
    			// Also build paths for the neighbors of our result abstraction
    			if (abs.getAbstraction().getNeighbors() != null)
-   				for (Abstraction neighbor : abs.getAbstraction().getNeighbors()) {
-   					AbstractionAtSink neighborAtSink = new AbstractionAtSink(neighbor,
+   				for (D neighbor : abs.getAbstraction().getNeighbors()) {
+   					AbstractionAtSink<D> neighborAtSink = new AbstractionAtSink<D>(neighbor,
    							abs.getSinkValue(), abs.getSinkStmt());
    		   			buildPathForAbstraction(neighborAtSink);
    				}
@@ -168,7 +170,7 @@ public class ContextInsensitivePathBuilder extends AbstractAbstractionPathBuilde
 	 * Builds the path for the given abstraction that reached a sink
 	 * @param abs The abstraction that reached a sink
 	 */
-	private void buildPathForAbstraction(final AbstractionAtSink abs) {
+	private void buildPathForAbstraction(final AbstractionAtSink<D> abs) {
 		SourceContextAndPath scap = new SourceContextAndPath(
 				abs.getSinkValue(), abs.getSinkStmt());
 		scap = scap.extendPath(abs.getSinkStmt());

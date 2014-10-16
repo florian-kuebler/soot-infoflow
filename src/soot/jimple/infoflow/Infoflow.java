@@ -42,6 +42,7 @@ import soot.jimple.infoflow.aliasing.FlowSensitiveAliasStrategy;
 import soot.jimple.infoflow.aliasing.IAliasingStrategy;
 import soot.jimple.infoflow.aliasing.PtsBasedAliasStrategy;
 import soot.jimple.infoflow.config.IInfoflowConfig;
+import soot.jimple.infoflow.data.Abstraction;
 import soot.jimple.infoflow.data.AbstractionAtSink;
 import soot.jimple.infoflow.data.AccessPath;
 import soot.jimple.infoflow.data.pathBuilders.DefaultPathBuilderFactory;
@@ -75,7 +76,7 @@ public class Infoflow extends AbstractInfoflow {
 	private static boolean pathAgnosticResults = true;
 	
 	private InfoflowResults results = null;
-	private final IPathBuilderFactory pathBuilderFactory;
+	private final IPathBuilderFactory<Abstraction> pathBuilderFactory;
 
 	private final String androidPath;
 	private final boolean forceAndroidJar;
@@ -94,7 +95,7 @@ public class Infoflow extends AbstractInfoflow {
 	public Infoflow() {
 		this.androidPath = "";
 		this.forceAndroidJar = false;
-		this.pathBuilderFactory = new DefaultPathBuilderFactory();
+		this.pathBuilderFactory = new DefaultPathBuilderFactory<Abstraction>();
 	}
 
 	/**
@@ -109,7 +110,7 @@ public class Infoflow extends AbstractInfoflow {
 		super();
 		this.androidPath = androidPath;
 		this.forceAndroidJar = forceAndroidJar;
-		this.pathBuilderFactory = new DefaultPathBuilderFactory();
+		this.pathBuilderFactory = new DefaultPathBuilderFactory<Abstraction>();
 	}
 
 	/**
@@ -124,7 +125,7 @@ public class Infoflow extends AbstractInfoflow {
 	 * algorithm 
 	 */
 	public Infoflow(String androidPath, boolean forceAndroidJar, BiDirICFGFactory icfgFactory,
-			IPathBuilderFactory pathBuilderFactory) {
+			IPathBuilderFactory<Abstraction> pathBuilderFactory) {
 		super(icfgFactory);
 		this.androidPath = androidPath;
 		this.forceAndroidJar = forceAndroidJar;
@@ -465,7 +466,7 @@ public class Infoflow extends AbstractInfoflow {
 			logger.info("Taint wrapper misses: " + taintWrapper.getWrapperMisses());
 		}
 		
-		Set<AbstractionAtSink> res = forwardProblem.getResults();
+		Set<AbstractionAtSink<Abstraction>> res = forwardProblem.getResults();
 
 		logger.info("IFDS problem with {} forward and {} backward edges solved, "
 				+ "processing {} results...", forwardSolver.propagationCount,
@@ -524,8 +525,8 @@ public class Infoflow extends AbstractInfoflow {
 	 * Computes the path of tainted data between the source and the sink
 	 * @param res The data flow tracker results
 	 */
-	private void computeTaintPaths(final Set<AbstractionAtSink> res) {
-		IAbstractionPathBuilder builder = this.pathBuilderFactory.createPathBuilder
+	private void computeTaintPaths(final Set<AbstractionAtSink<Abstraction>> res) {
+		IAbstractionPathBuilder<Abstraction> builder = this.pathBuilderFactory.createPathBuilder
 				(maxThreadNum, iCfg);
     	if (computeResultPaths)
     		builder.computeTaintPaths(res);

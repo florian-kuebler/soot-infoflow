@@ -13,9 +13,9 @@ package soot.jimple.infoflow.data;
 import soot.Value;
 import soot.jimple.Stmt;
 
-public class AbstractionAtSink {
+public class AbstractionAtSink<D> {
 	
-	private final Abstraction abstraction;
+	private final D abstraction;
 	private final Value sinkValue;
 	private final Stmt sinkStmt;
 	
@@ -25,7 +25,7 @@ public class AbstractionAtSink {
 	 * @param sinkValue The value that triggered the sink, e.g, the InvokeExpr
 	 * @param sinkStmt The statement that triggered the sink
 	 */
-	public AbstractionAtSink(Abstraction abstraction, Value sinkValue, Stmt sinkStmt) {
+	public AbstractionAtSink(D abstraction, Value sinkValue, Stmt sinkStmt) {
 		this.abstraction = abstraction;
 		this.sinkValue = sinkValue;
 		this.sinkStmt = sinkStmt;
@@ -35,7 +35,7 @@ public class AbstractionAtSink {
 	 * Gets the abstraction with which the sink has been reached
 	 * @return The abstraction with which the sink has been reached
 	 */
-	public Abstraction getAbstraction() {
+	public D getAbstraction() {
 		return this.abstraction;
 	}
 	
@@ -74,7 +74,7 @@ public class AbstractionAtSink {
 			return true;
 		if (obj == null || getClass() != obj.getClass())
 			return false;
-		AbstractionAtSink other = (AbstractionAtSink) obj;
+		AbstractionAtSink<D> other = (AbstractionAtSink<D>) obj;
 		if (abstraction == null) {
 			if (other.abstraction != null)
 				return false;

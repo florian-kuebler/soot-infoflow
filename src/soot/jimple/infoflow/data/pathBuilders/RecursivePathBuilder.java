@@ -14,19 +14,21 @@ import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import soot.SootMethod;
+import soot.Unit;
 import soot.jimple.Stmt;
 import soot.jimple.infoflow.InfoflowResults;
-import soot.jimple.infoflow.data.Abstraction;
 import soot.jimple.infoflow.data.AbstractionAtSink;
+import soot.jimple.infoflow.data.ILinkedAbstraction;
 import soot.jimple.infoflow.data.SourceContextAndPath;
-import soot.jimple.infoflow.solver.IInfoflowCFG;
+import soot.jimple.toolkits.ide.icfg.BiDiInterproceduralCFG;
 
 /**
  * Recursive algorithm for reconstructing abstraction paths from sink to source
  * 
  * @author Steven Arzt
  */
-public class RecursivePathBuilder extends AbstractAbstractionPathBuilder {
+public class RecursivePathBuilder<D extends ILinkedAbstraction<D>> extends AbstractAbstractionPathBuilder<D> {
 
     private final Logger logger = LoggerFactory.getLogger(getClass());
 
@@ -39,7 +41,7 @@ public class RecursivePathBuilder extends AbstractAbstractionPathBuilder {
      * Creates a new instance of the {@link RecursivePathBuilder} class
 	 * @param maxThreadNum The maximum number of threads to use
      */
-    public RecursivePathBuilder(IInfoflowCFG icfg, int maxThreadNum) {
+    public RecursivePathBuilder(BiDiInterproceduralCFG<Unit,SootMethod> icfg, int maxThreadNum) {
     	super(icfg);
     	int numThreads = Runtime.getRuntime().availableProcessors();
 		this.executor = createExecutor(maxThreadNum == -1 ? numThreads
@@ -67,13 +69,13 @@ public class RecursivePathBuilder extends AbstractAbstractionPathBuilder {
 	 * reconstructed, false if only the source as such shall be found
 	 * @return The path from the source to the current statement
 	 */
-	private Set<SourceContextAndPath> getPaths(int taskId, Abstraction curAbs,
-			boolean reconstructPaths, Stack<Pair<Stmt, Set<Abstraction>>> callStack) {
+	private Set<SourceContextAndPath> getPaths(int taskId, D curAbs,
+			boolean reconstructPaths, Stack<Pair<Stmt, Set<D>>> callStack) {
 		Set<SourceContextAndPath> cacheData = new HashSet<SourceContextAndPath>();
 		
-		Pair<Stmt, Set<Abstraction>> stackTop = callStack.isEmpty() ? null : callStack.peek();
+		Pair<Stmt, Set<D>> stackTop = callStack.isEmpty() ? null : callStack.peek();
 		if (stackTop != null) {
-			Set<Abstraction> callAbs = stackTop.getO2();
+			Set<D> callAbs = stackTop.getO2();
 			if (!callAbs.add(curAbs))
 				return Collections.emptySet();
 		}
@@ -94,11 +96,11 @@ public class RecursivePathBuilder extends AbstractAbstractionPathBuilder {
 		else {
 			// If we have a corresponding call site for the current return
 			// statement, we need to add it to the call stack.
-			Stack<Pair<Stmt, Set<Abstraction>>> newCallStack = new Stack<Pair<Stmt, Set<Abstraction>>>();
+			Stack<Pair<Stmt, Set<D>>> newCallStack = new Stack<Pair<Stmt, Set<D>>>();
 			newCallStack.addAll(callStack);
 			if (curAbs.getCorrespondingCallSite() != null/* && curAbs.isAbstractionActive()*/)
-				newCallStack.push(new Pair<Stmt, Set<Abstraction>>(curAbs.getCorrespondingCallSite(),
-						Collections.newSetFromMap(new IdentityHashMap<Abstraction,Boolean>())));
+				newCallStack.push(new Pair<Stmt, Set<D>>(curAbs.getCorrespondingCallSite(),
+						Collections.newSetFromMap(new IdentityHashMap<D,Boolean>())));
 			
 			boolean isMethodEnter = curAbs.getCurrentStmt() != null
 					&& curAbs.getCurrentStmt().containsInvokeExpr();
@@ -110,7 +112,7 @@ public class RecursivePathBuilder extends AbstractAbstractionPathBuilder {
 			boolean scanPreds = true;
 			if (isMethodEnter)
 				if (!newCallStack.isEmpty()) {
-					Pair<Stmt, Set<Abstraction>> newStackTop = newCallStack.isEmpty() ? null : newCallStack.peek();
+					Pair<Stmt, Set<D>> newStackTop = newCallStack.isEmpty() ? null : newCallStack.peek();
 					if (newStackTop.getO1() != null) {
 						if (curAbs.getCurrentStmt() != newStackTop.getO1())
 							scanPreds = false;
@@ -130,7 +132,7 @@ public class RecursivePathBuilder extends AbstractAbstractionPathBuilder {
 		}
 		
 		if (curAbs.getNeighbors() != null)
-			for (Abstraction nb : curAbs.getNeighbors())
+			for (D nb : curAbs.getNeighbors())
 				for (SourceContextAndPath path : getPaths(taskId, nb, reconstructPaths, callStack))
 					cacheData.add(path);
 		
@@ -144,19 +146,19 @@ public class RecursivePathBuilder extends AbstractAbstractionPathBuilder {
 	 * @param res The data flow tracker results
 	 */
 	private void computeTaintPathsInternal(final boolean computeResultPaths,
-			final Set<AbstractionAtSink> res) {   	
+			final Set<AbstractionAtSink<D>> res) {   	
 		logger.debug("Running path reconstruction");
     	logger.info("Obtainted {} connections between sources and sinks", res.size());
     	int curResIdx = 0;
-    	for (final AbstractionAtSink abs : res) {
+    	for (final AbstractionAtSink<D> abs : res) {
     		logger.info("Building path " + ++curResIdx);
     		executor.execute(new Runnable() {
 				
 				@Override
 				public void run() {
-					Stack<Pair<Stmt, Set<Abstraction>>> initialStack = new Stack<Pair<Stmt, Set<Abstraction>>>();
-					initialStack.push(new Pair<Stmt, Set<Abstraction>>(null,
-							Collections.newSetFromMap(new IdentityHashMap<Abstraction,Boolean>())));
+					Stack<Pair<Stmt, Set<D>>> initialStack = new Stack<Pair<Stmt, Set<D>>>();
+					initialStack.push(new Pair<Stmt, Set<D>>(null,
+							Collections.newSetFromMap(new IdentityHashMap<D,Boolean>())));
 		    		for (SourceContextAndPath context : getPaths(lastTaskId++,
 		    				abs.getAbstraction(), computeResultPaths,
 		    				initialStack))
@@ -180,12 +182,12 @@ public class RecursivePathBuilder extends AbstractAbstractionPathBuilder {
 	}
 
 	@Override
-	public void computeTaintSources(Set<AbstractionAtSink> res) {
+	public void computeTaintSources(Set<AbstractionAtSink<D>> res) {
 		computeTaintPathsInternal(false, res);
 	}
 
 	@Override
-	public void computeTaintPaths(Set<AbstractionAtSink> res) {
+	public void computeTaintPaths(Set<AbstractionAtSink<D>> res) {
 		computeTaintPathsInternal(true, res);
 	}
 

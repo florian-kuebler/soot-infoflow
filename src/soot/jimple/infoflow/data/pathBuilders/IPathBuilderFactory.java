@@ -1,6 +1,9 @@
 package soot.jimple.infoflow.data.pathBuilders;
 
-import soot.jimple.infoflow.solver.IInfoflowCFG;
+import soot.SootMethod;
+import soot.Unit;
+import soot.jimple.infoflow.data.ILinkedAbstraction;
+import soot.jimple.toolkits.ide.icfg.BiDiInterproceduralCFG;
 
 
 /**
@@ -8,7 +11,7 @@ import soot.jimple.infoflow.solver.IInfoflowCFG;
  * 
  * @author Steven Arzt
  */
-public interface IPathBuilderFactory {
+public interface IPathBuilderFactory<D extends ILinkedAbstraction<D>> {
 	
 	/**
 	 * Creates a new path builder
@@ -16,7 +19,7 @@ public interface IPathBuilderFactory {
 	 * @param icfg The interprocedural CFG to use
 	 * @return The newly created path builder
 	 */
-	public IAbstractionPathBuilder createPathBuilder
-			(int maxThreadNum, IInfoflowCFG icfg);
+	public IAbstractionPathBuilder<D> createPathBuilder
+			(int maxThreadNum, BiDiInterproceduralCFG<Unit,SootMethod> icfg);
 
 }

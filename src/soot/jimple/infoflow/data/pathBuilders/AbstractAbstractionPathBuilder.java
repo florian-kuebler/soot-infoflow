@@ -1,18 +1,20 @@
 package soot.jimple.infoflow.data.pathBuilders;
 
-import soot.jimple.infoflow.solver.IInfoflowCFG;
+import soot.SootMethod;
+import soot.Unit;
+import soot.jimple.infoflow.data.ILinkedAbstraction;
+import soot.jimple.toolkits.ide.icfg.BiDiInterproceduralCFG;
 
 /**
  * Abstract base class for all abstraction path builders
  * 
  * @author Steven Arzt
  */
-public abstract class AbstractAbstractionPathBuilder implements
-		IAbstractionPathBuilder {
-
-	protected final IInfoflowCFG icfg;
+public abstract class AbstractAbstractionPathBuilder<D extends ILinkedAbstraction<D>> implements
+		IAbstractionPathBuilder<D> {
+	protected final BiDiInterproceduralCFG<Unit,SootMethod> icfg;
 	
-	public AbstractAbstractionPathBuilder(IInfoflowCFG icfg) {
+	public AbstractAbstractionPathBuilder(BiDiInterproceduralCFG<Unit,SootMethod> icfg) {
 		this.icfg = icfg;
 	}
 

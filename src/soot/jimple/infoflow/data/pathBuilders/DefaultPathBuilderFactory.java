@@ -1,13 +1,16 @@
 package soot.jimple.infoflow.data.pathBuilders;
 
-import soot.jimple.infoflow.solver.IInfoflowCFG;
+import soot.SootMethod;
+import soot.Unit;
+import soot.jimple.infoflow.data.ILinkedAbstraction;
+import soot.jimple.toolkits.ide.icfg.BiDiInterproceduralCFG;
 
 /**
  * Default factory class for abstraction path builders
  * 
  * @author Steven Arzt
  */
-public class DefaultPathBuilderFactory implements IPathBuilderFactory {
+public class DefaultPathBuilderFactory<D extends ILinkedAbstraction<D>> implements IPathBuilderFactory<D> {
 	
 	/**
 	 * Enumeration containing the supported path builders
@@ -54,17 +57,17 @@ public class DefaultPathBuilderFactory implements IPathBuilderFactory {
 	}
 	
 	@Override
-	public IAbstractionPathBuilder createPathBuilder(int maxThreadNum,
-			IInfoflowCFG icfg) {
+	public IAbstractionPathBuilder<D> createPathBuilder(int maxThreadNum,
+			BiDiInterproceduralCFG<Unit,SootMethod> icfg) {
 		switch (pathBuilder) {
 		case Recursive :
-			return new RecursivePathBuilder(icfg, maxThreadNum);
+			return new RecursivePathBuilder<D>(icfg, maxThreadNum);
 		case ContextSensitive :
-			return new ContextSensitivePathBuilder(icfg, maxThreadNum);
+			return new ContextSensitivePathBuilder<D>(icfg, maxThreadNum);
 		case ContextInsensitive :
-			return new ContextInsensitivePathBuilder(icfg, maxThreadNum);
+			return new ContextInsensitivePathBuilder<D>(icfg, maxThreadNum);
 		case ContextInsensitiveSourceFinder :
-			return new ContextInsensitiveSourceFinder(maxThreadNum);
+			return new ContextInsensitiveSourceFinder<D>(maxThreadNum);
 		}
 		throw new RuntimeException("Unsupported path building algorithm");
 	}

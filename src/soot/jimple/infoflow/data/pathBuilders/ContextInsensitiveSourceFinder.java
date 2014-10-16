@@ -15,15 +15,15 @@ import org.slf4j.LoggerFactory;
 
 import soot.jimple.Stmt;
 import soot.jimple.infoflow.InfoflowResults;
-import soot.jimple.infoflow.data.Abstraction;
 import soot.jimple.infoflow.data.AbstractionAtSink;
+import soot.jimple.infoflow.data.ILinkedAbstraction;
 
 /**
  * Class for reconstructing abstraction paths from sinks to source
  * 
  * @author Steven Arzt
  */
-public class ContextInsensitiveSourceFinder implements IAbstractionPathBuilder {
+public class ContextInsensitiveSourceFinder<D extends ILinkedAbstraction<D>> implements IAbstractionPathBuilder<D> {
 	
 	private AtomicInteger propagationCount = null;
     private final Logger logger = LoggerFactory.getLogger(getClass());
@@ -61,10 +61,10 @@ public class ContextInsensitiveSourceFinder implements IAbstractionPathBuilder {
 	 */
 	private class SourceFindingTask implements Runnable {
 		private final int taskId;
-		private final AbstractionAtSink flagAbs;
-		private final List<Abstraction> abstractionQueue = new LinkedList<Abstraction>();
+		private final AbstractionAtSink<D> flagAbs;
+		private final List<D> abstractionQueue = new LinkedList<D>();
 		
-		public SourceFindingTask(int taskId, AbstractionAtSink flagAbs, Abstraction abstraction) {
+		public SourceFindingTask(int taskId, AbstractionAtSink<D> flagAbs, D abstraction) {
 			this.taskId = taskId;
 			this.flagAbs = flagAbs;
 			this.abstractionQueue.add(abstraction);
@@ -73,7 +73,7 @@ public class ContextInsensitiveSourceFinder implements IAbstractionPathBuilder {
 		@Override
 		public void run() {
 			while (!abstractionQueue.isEmpty()) {
-				Abstraction abstraction = abstractionQueue.remove(0);
+				D abstraction = abstractionQueue.remove(0);
 				propagationCount.incrementAndGet();
 								
 				if (abstraction.getSourceContext() != null) {
@@ -93,7 +93,7 @@ public class ContextInsensitiveSourceFinder implements IAbstractionPathBuilder {
 						abstractionQueue.add(abstraction.getPredecessor());
 				
 				if (abstraction.getNeighbors() != null)
-					for (Abstraction nb : abstraction.getNeighbors())
+					for (D nb : abstraction.getNeighbors())
 						if (nb.registerPathFlag(taskId))
 							abstractionQueue.add(nb);
 			}
@@ -101,7 +101,7 @@ public class ContextInsensitiveSourceFinder implements IAbstractionPathBuilder {
 	}
 	
 	@Override
-	public void computeTaintSources(final Set<AbstractionAtSink> res) {
+	public void computeTaintSources(final Set<AbstractionAtSink<D>> res) {
 		if (res.isEmpty())
 			return;
 		
@@ -111,7 +111,7 @@ public class ContextInsensitiveSourceFinder implements IAbstractionPathBuilder {
     	
     	// Start the propagation tasks
     	int curResIdx = 0;
-    	for (final AbstractionAtSink abs : res) {
+    	for (final AbstractionAtSink<D> abs : res) {
     		logger.info("Building path " + ++curResIdx);
     		executor.execute(new SourceFindingTask(lastTaskId++, abs, abs.getAbstraction()));
     	}
@@ -128,7 +128,7 @@ public class ContextInsensitiveSourceFinder implements IAbstractionPathBuilder {
 	}
 	
 	@Override
-	public void computeTaintPaths(final Set<AbstractionAtSink> res) {
+	public void computeTaintPaths(final Set<AbstractionAtSink<D>> res) {
 		System.err.println("WARNING: Path reconstruction is not supported");
 		computeTaintSources(res);
 	}

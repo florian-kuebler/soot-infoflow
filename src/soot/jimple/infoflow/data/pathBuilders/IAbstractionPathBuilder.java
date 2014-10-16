@@ -4,6 +4,7 @@ import java.util.Set;
 
 import soot.jimple.infoflow.InfoflowResults;
 import soot.jimple.infoflow.data.AbstractionAtSink;
+import soot.jimple.infoflow.data.ILinkedAbstraction;
 
 /**
  * Common interface for all path construction algorithms. These algorithms
@@ -11,19 +12,19 @@ import soot.jimple.infoflow.data.AbstractionAtSink;
  *  
  * @author Steven Arzt
  */
-public interface IAbstractionPathBuilder {
+public interface IAbstractionPathBuilder<D extends ILinkedAbstraction<D>> {
 
 	/**
 	 * Finds the sources from which data flows to the sinks
 	 * @param res The data flow tracker results
 	 */
-	public void computeTaintSources(final Set<AbstractionAtSink> res);
+	public void computeTaintSources(final Set<AbstractionAtSink<D>> res);
 
 	/**
 	 * Computes the path of tainted data between the source and the sink
 	 * @param res The data flow tracker results
 	 */
-	public void computeTaintPaths(final Set<AbstractionAtSink> res);
+	public void computeTaintPaths(final Set<AbstractionAtSink<D>> res);
 	
 	/**
 	 * Gets the constructed result paths
